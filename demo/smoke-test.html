@@ -67,24 +67,25 @@
     const status = document.getElementById('status');
     const container = document.getElementById('canvas-container');
     
-    // A tiny base64-encoded PDF (just a blank page with "PDF.js works!" text)
-    // This is a minimal valid PDF that renders without external dependencies
-    const testPdfBase64 = 'JVBERi0xLjQKJcOkw7zDtsO8CjIgMCBvYmoKPDwKL0xlbmd0aCAzIDAgUgovRmlsdGVyIC9GbGF0ZURlY29kZQo+PgpzdHJlYW0KeJzLSMwtykvMTbVSUEjNS85PycxLt1Uy1DNQUkjNzCtJTSxJzsjPS7VVqkwtVrKqVsoECVumVtpaxVZlFqfmlQDZQJZlXklqMVBnpVJ+ZklqUbFSbS0AkKEZGAplbmRzdHJlYW0KZW5kb2JqCgo0IDAgb2JqCjw8Ci9UeXBlIC9QYWdlCi9QYXJlbnQgMyAwIFIKL1Jlc291cmNlcyA8PAovRm9udCA8PAovRjEgOSA4IFIKPj4KPj4KL01lZGlhQm94IFswIDAgNjEyIDc5Ml0KL0NvbnRlbnRzIDIgMCBSCj4+CmVuZG9iagoKMyAwIG9iago8PAovVHlwZSAvUGFnZXMKL0NvdW50IDEKL0tpZHMgWzQgMCBSXQo+PgplbmRvYmoKCjEgMCBvYmoKPDwKL1R5cGUgL0NhdGFsb2cKL1BhZ2VzIDMgMCBSCj4+CmVuZG9iagoKNSAwIG9iago8PAovVHlwZSAvRm9udAovU3VidHlwZSAvVHlwZTEKL0Jhc2VGb250IC9IZWx2ZXRpY2EKPj4KZW5kb2JqCgo2IDAgb2JqCjw8Ci9UeXBlIC9Gb250Ci9TdWJ0eXBlIC9UeXBlMQovQmFzZUZvbnQgL0hlbHZldGljYS1Cb2xkCj4+CmVuZG9iagoKNyAwIG9iago8PAovVHlwZSAvRm9udAovU3VidHlwZSAvVHlwZTEKL0Jhc2VGb250IC9IZWx2ZXRpY2EtT2JsaXF1ZQo+PgplbmRvYmoKCjggMCBvYmoKPDwKL1R5cGUgL0ZvbnQKL1N1YnR5cGUgL1R5cGUxCi9CYXNlRm9udCAvQ291cmllcgo+PgplbmRvYmoKCjkgMCBvYmoKPDwKL1R5cGUgL0ZvbnQKL1N1YnR5cGUgL1R5cGUxCi9CYXNlRm9udCAvSGVsdmV0aWNhCj4+CmVuZG9iagoKeHJlZgowIDEwCjAwMDAwMDAwMDAgNjU1MzUgZiAKMDAwMDAwMDQ3MiAwMDAwMCBuIAowMDAwMDAwMDE1IDAwMDAwIG4gCjAwMDAwMDAzNzkgMDAwMDAgbiAKMDAwMDAwMDI1MiAwMDAwMCBuIAowMDAwMDAwNTQxIDAwMDAwIG4gCjAwMDAwMDYxNCAwMDAwMCBuIAowMDAwMDAwNjkxIDAwMDAwIG4gCjAwMDAwMDc3MiAwMDAwMCBuIAowMDAwMDAwODUzIDAwMDAwIG4gCnRyYWlsZXIKPDwKL1NpemUgMTAKL1Jvb3QgMSAwIFIKPj4Kc3RhcnR4cmVmCjkzNAolJUVPRg==';
-    
     async function runSmokeTest() {
       try {
         // Set worker
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
         
-        // Convert base64 to Uint8Array
-        const raw = atob(testPdfBase64);
-        const uint8Array = new Uint8Array(raw.length);
-        for (let i = 0; i < raw.length; i++) {
-          uint8Array[i] = raw.charCodeAt(i);
+        // Use a real PDF from the assets folder
+        status.innerHTML = '⏳ Loading PDF.js and fetching test PDF...';
+        
+        // Fetch the actual Alicia PDF
+        const response = await fetch('../assets/alicia.pdf');
+        if (!response.ok) {
+          throw new Error(`Failed to fetch PDF: ${response.status} ${response.statusText}`);
         }
         
+        const pdfData = await response.arrayBuffer();
+        console.log('✓ PDF fetched, size:', pdfData.byteLength, 'bytes');
+        
         // Load the PDF
-        const pdf = await pdfjsLib.getDocument({ data: uint8Array }).promise;
+        const pdf = await pdfjsLib.getDocument({ data: pdfData }).promise;
         console.log('✓ PDF loaded, pages:', pdf.numPages);
         
         // Get first page
@@ -95,10 +96,13 @@
         const textContent = await page.getTextContent();
         console.log('✓ Text content extracted:', textContent.items.length, 'items');
         
+        // Show sample text
+        const sampleText = textContent.items.slice(0, 3).map(item => item.str).join(' ');
+        
         // Render to canvas
         const canvas = document.createElement('canvas');
         const context = canvas.getContext('2d');
-        const viewport = page.getViewport({ scale: 1.5 });
+        const viewport = page.getViewport({ scale: 1.0 });
         
         canvas.width = viewport.width;
         canvas.height = viewport.height;
@@ -115,10 +119,11 @@
         status.innerHTML = `
           ✅ SMOKE TEST PASSED<br><br>
           <code>pdfjs-lib</code> loaded from CDN ✓<br>
-          PDF parsed successfully ✓<br>
-          Page 1 rendered to canvas ✓<br>
-          Text extraction API works ✓<br><br>
-          <strong>Stack is ready. Proceed with Alicia build.</strong>
+          Alicia PDF loaded (${(pdfData.byteLength / 1024 / 1024).toFixed(1)} MB) ✓<br>
+          Page 1 rendered to canvas (${Math.round(viewport.width)}×${Math.round(viewport.height)}) ✓<br>
+          Text extraction API works (${textContent.items.length} text items) ✓<br><br>
+          <strong>Stack is ready. Proceed with Alicia build.</strong><br><br>
+          <em>Sample text: "${sampleText.substring(0, 100)}..."</em>
         `;
         
       } catch (error) {
@@ -127,7 +132,8 @@
         status.innerHTML = `
           ❌ SMOKE TEST FAILED<br><br>
           Error: ${error.message}<br><br>
-          <strong>Try:</strong> Check internet connection, or switch to local PDF.js build
+          <strong>Try:</strong> Make sure you're running this from a web server (not file://)<br>
+          Or check that assets/alicia.pdf exists
         `;
       }
     }

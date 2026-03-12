@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PDF.js Smoke Test</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      max-width: 800px;
+      margin: 40px auto;
+      padding: 20px;
+      background: #0d1320;
+      color: #e8eefc;
+    }
+    .status {
+      padding: 16px 20px;
+      border-radius: 12px;
+      margin: 16px 0;
+      font-family: monospace;
+    }
+    .pending { background: rgba(255, 209, 102, 0.1); border: 1px solid rgba(255, 209, 102, 0.3); color: #ffd166; }
+    .success { background: rgba(110, 231, 168, 0.1); border: 1px solid rgba(110, 231, 168, 0.3); color: #6ee7a8; }
+    .error { background: rgba(255, 107, 107, 0.1); border: 1px solid rgba(255, 107, 107, 0.3); color: #ff6b6b; }
+    #canvas-container {
+      margin-top: 24px;
+      border: 2px dashed rgba(255,255,255,0.2);
+      border-radius: 12px;
+      padding: 40px;
+      text-align: center;
+      min-height: 200px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    canvas {
+      max-width: 100%;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+      border-radius: 8px;
+    }
+    h1 { margin: 0 0 8px 0; font-size: 24px; }
+    .subtitle { color: #9fb0cc; font-size: 14px; margin-bottom: 24px; }
+    code {
+      background: rgba(255,255,255,0.1);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+  <h1>🔥 PDF.js Smoke Test</h1>
+  <p class="subtitle">30-second verification that PDF.js loads and renders</p>
+  
+  <div id="status" class="status pending">
+    ⏳ Loading PDF.js from CDN...
+  </div>
+  
+  <div id="canvas-container">
+    <p style="color: #9fb0cc;">Canvas will appear here if smoke test passes</p>
+  </div>
+
+  <!-- PDF.js from CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  
+  <script>
+    const status = document.getElementById('status');
+    const container = document.getElementById('canvas-container');
+    
+    // A tiny base64-encoded PDF (just a blank page with "PDF.js works!" text)
+    // This is a minimal valid PDF that renders without external dependencies
+    const testPdfBase64 = 'JVBERi0xLjQKJcOkw7zDtsO8CjIgMCBvYmoKPDwKL0xlbmd0aCAzIDAgUgovRmlsdGVyIC9GbGF0ZURlY29kZQo+PgpzdHJlYW0KeJzLSMwtykvMTbVSUEjNS85PycxLt1Uy1DNQUkjNzCtJTSxJzsjPS7VVqkwtVrKqVsoECVumVtpaxVZlFqfmlQDZQJZlXklqMVBnpVJ+ZklqUbFSbS0AkKEZGAplbmRzdHJlYW0KZW5kb2JqCgo0IDAgb2JqCjw8Ci9UeXBlIC9QYWdlCi9QYXJlbnQgMyAwIFIKL1Jlc291cmNlcyA8PAovRm9udCA8PAovRjEgOSA4IFIKPj4KPj4KL01lZGlhQm94IFswIDAgNjEyIDc5Ml0KL0NvbnRlbnRzIDIgMCBSCj4+CmVuZG9iagoKMyAwIG9iago8PAovVHlwZSAvUGFnZXMKL0NvdW50IDEKL0tpZHMgWzQgMCBSXQo+PgplbmRvYmoKCjEgMCBvYmoKPDwKL1R5cGUgL0NhdGFsb2cKL1BhZ2VzIDMgMCBSCj4+CmVuZG9iagoKNSAwIG9iago8PAovVHlwZSAvRm9udAovU3VidHlwZSAvVHlwZTEKL0Jhc2VGb250IC9IZWx2ZXRpY2EKPj4KZW5kb2JqCgo2IDAgb2JqCjw8Ci9UeXBlIC9Gb250Ci9TdWJ0eXBlIC9UeXBlMQovQmFzZUZvbnQgL0hlbHZldGljYS1Cb2xkCj4+CmVuZG9iagoKNyAwIG9iago8PAovVHlwZSAvRm9udAovU3VidHlwZSAvVHlwZTEKL0Jhc2VGb250IC9IZWx2ZXRpY2EtT2JsaXF1ZQo+PgplbmRvYmoKCjggMCBvYmoKPDwKL1R5cGUgL0ZvbnQKL1N1YnR5cGUgL1R5cGUxCi9CYXNlRm9udCAvQ291cmllcgo+PgplbmRvYmoKCjkgMCBvYmoKPDwKL1R5cGUgL0ZvbnQKL1N1YnR5cGUgL1R5cGUxCi9CYXNlRm9udCAvSGVsdmV0aWNhCj4+CmVuZG9iagoKeHJlZgowIDEwCjAwMDAwMDAwMDAgNjU1MzUgZiAKMDAwMDAwMDQ3MiAwMDAwMCBuIAowMDAwMDAwMDE1IDAwMDAwIG4gCjAwMDAwMDAzNzkgMDAwMDAgbiAKMDAwMDAwMDI1MiAwMDAwMCBuIAowMDAwMDAwNTQxIDAwMDAwIG4gCjAwMDAwMDYxNCAwMDAwMCBuIAowMDAwMDAwNjkxIDAwMDAwIG4gCjAwMDAwMDc3MiAwMDAwMCBuIAowMDAwMDAwODUzIDAwMDAwIG4gCnRyYWlsZXIKPDwKL1NpemUgMTAKL1Jvb3QgMSAwIFIKPj4Kc3RhcnR4cmVmCjkzNAolJUVPRg==';
+    
+    async function runSmokeTest() {
+      try {
+        // Set worker
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        
+        // Convert base64 to Uint8Array
+        const raw = atob(testPdfBase64);
+        const uint8Array = new Uint8Array(raw.length);
+        for (let i = 0; i < raw.length; i++) {
+          uint8Array[i] = raw.charCodeAt(i);
+        }
+        
+        // Load the PDF
+        const pdf = await pdfjsLib.getDocument({ data: uint8Array }).promise;
+        console.log('✓ PDF loaded, pages:', pdf.numPages);
+        
+        // Get first page
+        const page = await pdf.getPage(1);
+        console.log('✓ Page 1 loaded');
+        
+        // Get text content
+        const textContent = await page.getTextContent();
+        console.log('✓ Text content extracted:', textContent.items.length, 'items');
+        
+        // Render to canvas
+        const canvas = document.createElement('canvas');
+        const context = canvas.getContext('2d');
+        const viewport = page.getViewport({ scale: 1.5 });
+        
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        
+        await page.render({ canvasContext: context, viewport: viewport }).promise;
+        console.log('✓ Page rendered to canvas');
+        
+        // Display results
+        container.innerHTML = '';
+        container.appendChild(canvas);
+        container.style.border = '2px solid #6ee7a8';
+        
+        status.className = 'status success';
+        status.innerHTML = `
+          ✅ SMOKE TEST PASSED<br><br>
+          <code>pdfjs-lib</code> loaded from CDN ✓<br>
+          PDF parsed successfully ✓<br>
+          Page 1 rendered to canvas ✓<br>
+          Text extraction API works ✓<br><br>
+          <strong>Stack is ready. Proceed with Alicia build.</strong>
+        `;
+        
+      } catch (error) {
+        console.error('Smoke test failed:', error);
+        status.className = 'status error';
+        status.innerHTML = `
+          ❌ SMOKE TEST FAILED<br><br>
+          Error: ${error.message}<br><br>
+          <strong>Try:</strong> Check internet connection, or switch to local PDF.js build
+        `;
+      }
+    }
+    
+    // Run on load
+    runSmokeTest();
+  </script>
+</body>
+</html>

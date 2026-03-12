@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Alice Interview Orchestration System</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+    
+    :root {
+      --bg: #0a0f1a;
+      --bg-2: #0d1320;
+      --panel: rgba(18, 26, 43, 0.6);
+      --panel-solid: #121a2b;
+      --panel-hover: rgba(23, 34, 56, 0.8);
+      --text: #f0f4fa;
+      --text-secondary: #a0aec0;
+      --text-muted: #64748b;
+      --accent-cyan: #22d3ee;
+      --accent-amber: #fbbf24;
+      --accent-emerald: #34d399;
+      --accent-rose: #fb7185;
+      --accent-violet: #a78bfa;
+      --line: rgba(255, 255, 255, 0.06);
+      --line-strong: rgba(255, 255, 255, 0.12);
+      --glow-cyan: rgba(34, 211, 238, 0.15);
+      --glow-amber: rgba(251, 191, 36, 0.15);
+    }
+    
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.6;
+      overflow-x: hidden;
+    }
+    
+    /* Animated background */
+    .bg-mesh {
+      position: fixed;
+      inset: 0;
+      z-index: -1;
+      background: 
+        radial-gradient(ellipse 80% 50% at 20% 40%, rgba(34, 211, 238, 0.08), transparent),
+        radial-gradient(ellipse 60% 40% at 80% 60%, rgba(251, 191, 36, 0.06), transparent),
+        radial-gradient(ellipse 50% 30% at 50% 100%, rgba(167, 139, 250, 0.05), transparent),
+        var(--bg);
+    }
+    
+    .bg-mesh::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+      opacity: 0.03;
+      pointer-events: none;
+    }
+    
+    .wrap { 
+      max-width: 1200px; 
+      margin: 0 auto; 
+      padding: 40px 24px 80px; 
+    }
+    
+    /* Hero Section */
+    .hero {
+      position: relative;
+      padding: 48px;
+      background: linear-gradient(135deg, rgba(18, 26, 43, 0.8), rgba(23, 34, 56, 0.6));
+      border: 1px solid var(--line-strong);
+      border-radius: 24px;
+      overflow: hidden;
+      margin-bottom: 32px;
+    }
+    
+    .hero::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--accent-cyan), var(--accent-amber), transparent);
+    }
+    
+    .hero-glow {
+      position: absolute;
+      top: -50%;
+      right: -20%;
+      width: 600px;
+      height: 600px;
+      background: radial-gradient(circle, var(--glow-cyan), transparent 70%);
+      opacity: 0.5;
+      pointer-events: none;
+    }
+    
+    .kicker {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+      color: var(--accent-cyan);
+      margin-bottom: 20px;
+      padding: 8px 16px;
+      background: rgba(34, 211, 238, 0.1);
+      border: 1px solid rgba(34, 211, 238, 0.2);
+      border-radius: 100px;
+    }
+    
+    .kicker::before {
+      content: '◆';
+      font-size: 8px;
+    }
+    
+    h1 {
+      font-size: clamp(36px, 5vw, 56px);
+      font-weight: 700;
+      line-height: 1.1;
+      letter-spacing: -0.02em;
+      background: linear-gradient(135deg, var(--text) 0%, var(--text-secondary) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    
+    .sub {
+      margin-top: 20px;
+      color: var(--text-secondary);
+      font-size: 17px;
+      line-height: 1.7;
+      max-width: 700px;
+    }
+    
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 28px;
+    }
+    
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 10px 18px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--line);
+      border-radius: 100px;
+      color: var(--text-secondary);
+      font-size: 13px;
+      font-weight: 500;
+      transition: all 0.2s ease;
+    }
+    
+    .chip:hover {
+      background: rgba(255, 255, 255, 0.06);
+      border-color: var(--line-strong);
+      transform: translateY(-1px);
+    }
+    
+    /* Grid Layout */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 24px;
+    }
+    
+    /* Panel Base */
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      padding: 28px;
+      backdrop-filter: blur(20px);
+      transition: all 0.3s ease;
+    }
+    
+    .panel:hover {
+      border-color: var(--line-strong);
+      background: var(--panel-hover);
+    }
+    
+    .panel-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    
+    .panel-icon {
+      width: 40px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(34, 211, 238, 0.1);
+      border: 1px solid rgba(34, 211, 238, 0.2);
+      border-radius: 12px;
+      font-size: 18px;
+    }
+    
+    .panel-title {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--accent-cyan);
+    }
+    
+    /* Agent Cards */
+    .agent-grid {
+      display: grid;
+      gap: 12px;
+    }
+    
+    .agent-card {
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+      padding: 18px;
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      transition: all 0.2s ease;
+    }
+    
+    .agent-card:hover {
+      background: rgba(255, 255, 255, 0.04);
+      border-color: var(--line-strong);
+      transform: translateX(4px);
+    }
+    
+    .agent-avatar {
+      width: 44px;
+      height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 12px;
+      font-size: 20px;
+      flex-shrink: 0;
+    }
+    
+    .agent-avatar.lead { background: rgba(251, 113, 133, 0.15); }
+    .agent-avatar.pm { background: rgba(34, 211, 238, 0.15); }
+    .agent-avatar.spec { background: rgba(167, 139, 250, 0.15); }
+    .agent-avatar.spark { background: rgba(251, 191, 36, 0.15); }
+    .agent-avatar.review { background: rgba(52, 211, 153, 0.15); }
+    .agent-avatar.speak { background: rgba(96, 165, 250, 0.15); }
+    
+    .agent-info h3 {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+    
+    .agent-info p {
+      font-size: 13px;
+      color: var(--text-secondary);
+      line-height: 1.5;
+    }
+    
+    /* Flow Steps */
+    .flow-container {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+    
+    .flow-step {
+      display: flex;
+      gap: 16px;
+      padding: 20px 0;
+      border-bottom: 1px solid var(--line);
+      position: relative;
+    }
+    
+    .flow-step:last-child {
+      border-bottom: none;
+    }
+    
+    .flow-number {
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, var(--accent-cyan), var(--accent-violet));
+      border-radius: 10px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--bg);
+      flex-shrink: 0;
+    }
+    
+    .flow-content h4 {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 6px;
+    }
+    
+    .flow-content p {
+      font-size: 13px;
+      color: var(--text-secondary);
+      line-height: 1.6;
+    }
+    
+    /* Why Cards */
+    .why-grid {
+      display: grid;
+      gap: 16px;
+    }
+    
+    .why-card {
+      padding: 20px;
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      transition: all 0.2s ease;
+    }
+    
+    .why-card:hover {
+      background: rgba(255, 255, 255, 0.04);
+      border-color: var(--accent-cyan);
+    }
+    
+    .why-card strong {
+      display: block;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 8px;
+    }
+    
+    .why-card p {
+      font-size: 13px;
+      color: var(--text-secondary);
+      line-height: 1.6;
+    }
+    
+    /* Receipt */
+    .receipt {
+      margin-top: 24px;
+      padding: 20px;
+      background: linear-gradient(135deg, rgba(52, 211, 153, 0.1), rgba(52, 211, 153, 0.05));
+      border: 1px solid rgba(52, 211, 153, 0.2);
+      border-radius: 14px;
+    }
+    
+    .receipt-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    
+    .receipt-icon {
+      width: 28px;
+      height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(52, 211, 153, 0.2);
+      border-radius: 8px;
+      font-size: 14px;
+    }
+    
+    .receipt-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--accent-emerald);
+    }
+    
+    .receipt p {
+      font-size: 14px;
+      color: var(--text-secondary);
+      line-height: 1.7;
+    }
+    
+    /* Questions Section */
+    .questions-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 32px;
+    }
+    
+    .questions-col h3 {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 20px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--line);
+    }
+    
+    .question-list {
+      list-style: none;
+      counter-reset: question;
+    }
+    
+    .question-list li {
+      position: relative;
+      padding: 16px 0 16px 44px;
+      border-bottom: 1px solid var(--line);
+      font-size: 14px;
+      color: var(--text-secondary);
+      line-height: 1.6;
+      transition: all 0.2s ease;
+    }
+    
+    .question-list li:hover {
+      color: var(--text);
+      padding-left: 48px;
+    }
+    
+    .question-list li::before {
+      counter-increment: question;
+      content: counter(question);
+      position: absolute;
+      left: 0;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 28px;
+      height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      transition: all 0.2s ease;
+    }
+    
+    .question-list li:hover::before {
+      background: var(--accent-cyan);
+      border-color: var(--accent-cyan);
+      color: var(--bg);
+    }
+    
+    .question-list li:last-child {
+      border-bottom: none;
+    }
+    
+    /* Footer */
+    .footer {
+      margin-top: 32px;
+      padding: 24px;
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      text-align: center;
+    }
+    
+    .footer p {
+      font-size: 14px;
+      color: var(--text-secondary);
+    }
+    
+    .footer strong {
+      color: var(--text);
+    }
+    
+    /* Grid Spans */
+    .span-7 { grid-column: span 7; }
+    .span-5 { grid-column: span 5; }
+    .span-12 { grid-column: span 12; }
+    
+    @media (max-width: 900px) {
+      .span-7, .span-5, .span-12 { grid-column: span 12; }
+      .questions-grid { grid-template-columns: 1fr; }
+      .hero { padding: 32px 24px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="bg-mesh"></div>
+  
+  <div class="wrap">
+    <section class="hero">
+      <div class="hero-glow"></div>
+      <div class="kicker">Tiger Mom Protocol Active</div>
+      <h1>Alice Stakeholder Interview System</h1>
+      <p class="sub">One thing for this session: extract enough signal from both founders to define a tiny MVP, crystallize acceptance criteria, and exit with a demoable plan. Tiger Mom owns scope and receipts.</p>
+      <div class="chips">
+        <div class="chip">👥 Stakeholders: Naledi + boyfriend</div>
+        <div class="chip">🌙 Midnight-safe discovery</div>
+        <div class="chip">🎯 Tiny MVP only</div>
+        <div class="chip">📋 Plan + interview notes + demo path</div>
+      </div>
+    </section>
+
+    <div class="grid">
+      <!-- Agents Panel -->
+      <section class="panel span-7">
+        <div class="panel-header">
+          <div class="panel-icon">🎭</div>
+          <div class="panel-title">Recommended Agent Roster</div>
+        </div>
+        <div class="agent-grid">
+          <div class="agent-card">
+            <div class="agent-avatar lead">🐯</div>
+            <div class="agent-info">
+              <h3>Tiger Mom Lead</h3>
+              <p>Owns the session. Picks one thing, enforces finish lines, captures shiny ideas, converts discovery into 3 acceptance criteria.</p>
+            </div>
+          </div>
+          <div class="agent-card">
+            <div class="agent-avatar pm">🎤</div>
+            <div class="agent-info">
+              <h3>PM Interviewer</h3>
+              <p>Runs the live interview, balances both voices, asks shared/individual questions, surfaces disagreements early.</p>
+            </div>
+          </div>
+          <div class="agent-card">
+            <div class="agent-avatar spec">📐</div>
+            <div class="agent-info">
+              <h3>CodexSpec</h3>
+              <p>Turns messy discovery into crisp product spec, user flows, component lists, edge cases—without drifting scope.</p>
+            </div>
+          </div>
+          <div class="agent-card">
+            <div class="agent-avatar spark">✨</div>
+            <div class="agent-info">
+              <h3>Spark Variant Lane</h3>
+              <p>Generates 2-3 fast product angles if answers are fuzzy: language learning, reading support, couple-collab mode.</p>
+            </div>
+          </div>
+          <div class="agent-card">
+            <div class="agent-avatar review">🔍</div>
+            <div class="agent-info">
+              <h3>Review Lane</h3>
+              <p>Checks whether the MVP is demoable in one slice and whether acceptance criteria are actually testable.</p>
+            </div>
+          </div>
+          <div class="agent-card">
+            <div class="agent-avatar speak">🔊</div>
+            <div class="agent-info">
+              <h3>Speak</h3>
+              <p>Reads back decisions at checkpoints so both stakeholders hear the same understanding audibly.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Why Panel -->
+      <section class="panel span-5">
+        <div class="panel-header">
+          <div class="panel-icon">💡</div>
+          <div class="panel-title">Why This Setup</div>
+        </div>
+        <div class="why-grid">
+          <div class="why-card">
+            <strong>🎯 Best Pull From Both People</strong>
+            <p>Use one interviewer, not two competing questioners. The PM lane asks; other lanes synthesize quietly.</p>
+          </div>
+          <div class="why-card">
+            <strong>⚡ Fast Conflict Detection</strong>
+            <p>Ask each person what success looks like, then compare. Catches mismatched expectations before building.</p>
+          </div>
+          <div class="why-card">
+            <strong>📐 Spec Over Vibes</strong>
+            <p>CodexSpec shines right after discovery, when answers are messy and need structure.</p>
+          </div>
+          <div class="why-card">
+            <strong>🛡️ Tiger Mom Guardrail</strong>
+            <p>Cool side features go into the Shiny Things Box instead of hijacking the MVP.</p>
+          </div>
+        </div>
+        <div class="receipt">
+          <div class="receipt-header">
+            <div class="receipt-icon">✓</div>
+            <div class="receipt-title">Session Receipt</div>
+          </div>
+          <p>By interview end: one target user, one primary value moment, one demo flow, three testable acceptance criteria.</p>
+        </div>
+      </section>
+
+      <!-- Interview Flow -->
+      <section class="panel span-12">
+        <div class="panel-header">
+          <div class="panel-icon">🌊</div>
+          <div class="panel-title">Interview Flow — 6 Steps</div>
+        </div>
+        <div class="flow-container">
+          <div class="flow-step">
+            <div class="flow-number">1</div>
+            <div class="flow-content">
+              <h4>Lock the Frame</h4>
+              <p>Confirm the single job for Alice tonight: reading help, language help, or relationship/collab help. No scope drift.</p>
+            </div>
+          </div>
+          <div class="flow-step">
+            <div class="flow-number">2</div>
+            <div class="flow-content">
+              <h4>Shared Vision Round</h4>
+              <p>Ask both stakeholders the same 4-5 questions to expose overlap and tension before they become blockers.</p>
+            </div>
+          </div>
+          <div class="flow-step">
+            <div class="flow-number">3</div>
+            <div class="flow-content">
+              <h4>Individual Pull</h4>
+              <p>Ask each person what they care about most, what they'll forgive, and what would make them say "wow."</p>
+            </div>
+          </div>
+          <div class="flow-step">
+            <div class="flow-number">4</div>
+            <div class="flow-content">
+              <h4>Synthesis Checkpoint</h4>
+              <p>Speak back the product thesis in one sentence. If both agree, freeze it. If not, iterate now.</p>
+            </div>
+          </div>
+          <div class="flow-step">
+            <div class="flow-number">5</div>
+            <div class="flow-content">
+              <h4>Tiny Demo Selection</h4>
+              <p>Choose the shortest happy path that proves the thesis: open passage → tap phrase → hear/see explanation.</p>
+            </div>
+          </div>
+          <div class="flow-step">
+            <div class="flow-number">6</div>
+            <div class="flow-content">
+              <h4>Acceptance Criteria</h4>
+              <p>CodexSpec writes three criteria. Review lane tries to break them. Tiger Mom trims until they're shippable.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Questions -->
+      <section class="panel span-12">
+        <div class="panel-header">
+          <div class="panel-icon">❓</div>
+          <div class="panel-title">High-Value Interview Questions</div>
+        </div>
+        <div class="questions-grid">
+          <div class="questions-col">
+            <h3>👥 Ask Both Together</h3>
+            <ol class="question-list">
+              <li>When Alice is working well, what exact moment makes you smile?</li>
+              <li>Who is the first user: you two, language learners, ADHD readers, or kids?</li>
+              <li>What is the one job Alice must do on day one?</li>
+              <li>What can be fake/stubbed in the demo, and what must feel real?</li>
+              <li>If we only show one 60-second flow, what should it be?</li>
+              <li>Optimize for delight, learning value, or technical depth?</li>
+            </ol>
+          </div>
+          <div class="questions-col">
+            <h3>🎭 Ask Each Individually</h3>
+            <ol class="question-list">
+              <li>What part do you most want to own?</li>
+              <li>What part would frustrate you if it were missing?</li>
+              <li>What is your biggest fear for this product?</li>
+              <li>What feature are you tempted to add that should wait?</li>
+              <li>What would make you call the first version a win tonight?</li>
+              <li>What do you want the other person to hear from you?</li>
+            </ol>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <div class="footer">
+      <p><strong>Next move:</strong> Run the interview live, then convert answers into a one-page Alice MVP brief and a clickable or coded demo.</p>
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Alicia PDF Reader - Event Tracking Prototype</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #0d1320;
+      color: #e8eefc;
+      display: flex;
+      height: 100vh;
+    }
+    
+    /* Left: PDF Viewer */
+    .viewer-container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid rgba(255,255,255,0.1);
+    }
+    
+    .toolbar {
+      padding: 12px 20px;
+      background: rgba(18,26,43,0.8);
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+      display: flex;
+      gap: 16px;
+      align-items: center;
+    }
+    
+    .toolbar button {
+      padding: 8px 16px;
+      background: rgba(34,211,238,0.1);
+      border: 1px solid rgba(34,211,238,0.3);
+      color: #22d3ee;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    
+    .toolbar button:hover {
+      background: rgba(34,211,238,0.2);
+    }
+    
+    .page-info {
+      margin-left: auto;
+      color: #9fb0cc;
+      font-size: 14px;
+    }
+    
+    .pdf-wrapper {
+      flex: 1;
+      overflow: auto;
+      padding: 40px;
+      position: relative;
+    }
+    
+    #pdf-canvas {
+      box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+      border-radius: 8px;
+      display: block;
+      margin: 0 auto;
+    }
+    
+    .text-layer {
+      position: absolute;
+      top: 40px;
+      left: 50%;
+      transform: translateX(-50%);
+      opacity: 0.2;
+      pointer-events: auto;
+    }
+    
+    .text-layer span {
+      position: absolute;
+      cursor: text;
+      background: transparent;
+      transition: background 0.2s;
+    }
+    
+    .text-layer span:hover {
+      background: rgba(34,211,238,0.2);
+    }
+    
+    /* Right: Event Stream Panel */
+    .event-panel {
+      width: 400px;
+      background: rgba(18,26,43,0.6);
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .panel-header {
+      padding: 20px;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+    
+    .panel-header h2 {
+      font-size: 16px;
+      color: #22d3ee;
+      margin-bottom: 4px;
+    }
+    
+    .panel-header p {
+      font-size: 12px;
+      color: #9fb0cc;
+    }
+    
+    .event-stream {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+    }
+    
+    .event-item {
+      padding: 12px;
+      background: rgba(255,255,255,0.03);
+      border-radius: 8px;
+      margin-bottom: 8px;
+      border-left: 3px solid #22d3ee;
+      font-size: 13px;
+    }
+    
+    .event-item.selection { border-left-color: #fbbf24; }
+    .event-item.dwell { border-left-color: #a78bfa; }
+    .event-item.gate { border-left-color: #34d399; }
+    
+    .event-type {
+      font-weight: 600;
+      color: #e8eefc;
+      margin-bottom: 4px;
+    }
+    
+    .event-data {
+      color: #9fb0cc;
+      font-family: monospace;
+      font-size: 11px;
+    }
+    
+    .gate-indicator {
+      padding: 12px 20px;
+      background: rgba(52,211,153,0.1);
+      border-top: 1px solid rgba(52,211,153,0.3);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    
+    .gate-status {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #64748b;
+    }
+    
+    .gate-status.active {
+      background: #34d399;
+      box-shadow: 0 0 10px #34d399;
+    }
+    
+    /* Hover tooltip */
+    .hover-tooltip {
+      position: fixed;
+      background: rgba(0,0,0,0.9);
+      color: white;
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      pointer-events: none;
+      z-index: 1000;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="viewer-container">
+    <div class="toolbar">
+      <button onclick="prevPage()">← Prev</button>
+      <button onclick="nextPage()">Next →</button>
+      <button onclick="zoomOut()">-</button>
+      <button onclick="zoomIn()">+</button>
+      <div class="page-info">
+        Page <span id="current-page">-</span> of <span id="total-pages">-</span>
+      </div>
+    </div>
+    <div class="pdf-wrapper" id="pdf-wrapper">
+      <canvas id="pdf-canvas"></canvas>
+      <div class="text-layer" id="text-layer"></div>
+    </div>
+  </div>
+  
+  <div class="event-panel">
+    <div class="panel-header">
+      <h2>🎧 Event Stream</h2>
+      <p>Real-time interaction tracking</p>
+    </div>
+    <div class="event-stream" id="event-stream"></div>
+    <div class="gate-indicator">
+      <div class="gate-status" id="gate-status"></div>
+      <span>AI Gate: <span id="gate-text">Waiting for interaction...</span></span>
+    </div>
+  </div>
+  
+  <div class="hover-tooltip" id="tooltip"></div>
+
+  <script>
+    // PDF.js Setup
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    
+    // State
+    let pdfDoc = null;
+    let currentPage = 1;
+    let scale = 1.0;
+    let dwellTimer = null;
+    let lastHoverElement = null;
+    
+    // Event Stream
+    const eventStream = [];
+    
+    function logEvent(type, data) {
+      const event = {
+        type,
+        data,
+        timestamp: new Date().toISOString()
+      };
+      eventStream.push(event);
+      
+      // Display in UI
+      const streamEl = document.getElementById('event-stream');
+      const eventEl = document.createElement('div');
+      eventEl.className = `event-item ${type}`;
+      eventEl.innerHTML = `
+        <div class="event-type">${type.toUpperCase()}</div>
+        <div class="event-data">${JSON.stringify(data, null, 2).slice(0, 200)}</div>
+      `;
+      streamEl.insertBefore(eventEl, streamEl.firstChild);
+      
+      // Check gate
+      checkGate(event);
+    }
+    
+    // Gate Logic (from Listen project pattern)
+    function checkGate(event) {
+      const gateStatus = document.getElementById('gate-status');
+      const gateText = document.getElementById('gate-text');
+      
+      let shouldTrigger = false;
+      let reason = '';
+      
+      if (event.type === 'dwell' && event.data.duration > 2000) {
+        shouldTrigger = true;
+        reason = `Dwell > 2s on "${event.data.text.slice(0, 30)}..."`;
+      }
+      
+      if (event.type === 'selection' && event.data.text.length > 10) {
+        shouldTrigger = true;
+        reason = `Selected "${event.data.text.slice(0, 40)}..."`;
+      }
+      
+      if (shouldTrigger) {
+        gateStatus.classList.add('active');
+        gateText.textContent = `Triggering AI: ${reason}`;
+        
+        // Reset after 3 seconds
+        setTimeout(() => {
+          gateStatus.classList.remove('active');
+          gateText.textContent = 'Waiting for interaction...';
+        }, 3000);
+      }
+    }
+    
+    // Load PDF
+    async function loadPDF() {
+      try {
+        const response = await fetch('../assets/alicia.pdf');
+        const arrayBuffer = await response.arrayBuffer();
+        pdfDoc = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        
+        document.getElementById('total-pages').textContent = pdfDoc.numPages;
+        renderPage(currentPage);
+      } catch (error) {
+        console.error('Error loading PDF:', error);
+        document.getElementById('event-stream').innerHTML = 
+          '<div class="event-item">❌ Error: Could not load PDF. Make sure assets/alicia.pdf exists.</div>';
+      }
+    }
+    
+    // Render Page
+    async function renderPage(pageNum) {
+      const page = await pdfDoc.getPage(pageNum);
+      const canvas = document.getElementById('pdf-canvas');
+      const ctx = canvas.getContext('2d');
+      
+      const viewport = page.getViewport({ scale });
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+      
+      await page.render({ canvasContext: ctx, viewport }).promise;
+      
+      // Render text layer
+      const textContent = await page.getTextContent();
+      const textLayer = document.getElementById('text-layer');
+      textLayer.innerHTML = '';
+      textLayer.style.width = viewport.width + 'px';
+      textLayer.style.height = viewport.height + 'px';
+      
+      textContent.items.forEach((item, index) => {
+        const span = document.createElement('span');
+        span.textContent = item.str;
+        const tx = pdfjsLib.Util.transform(viewport.transform, item.transform);
+        const fontHeight = Math.hypot(tx[0], tx[1]);
+        const fontWidth = Math.hypot(tx[2], tx[3]);
+        
+        span.style.left = tx[4] + 'px';
+        span.style.top = tx[5] + 'px';
+        span.style.fontSize = fontHeight + 'px';
+        span.style.transform = 'scaleX(' + (fontWidth / fontHeight) + ')';
+        span.dataset.text = item.str;
+        span.dataset.index = index;
+        
+        // Hover tracking
+        span.addEventListener('mouseenter', handleHoverStart);
+        span.addEventListener('mouseleave', handleHoverEnd);
+        
+        textLayer.appendChild(span);
+      });
+      
+      document.getElementById('current-page').textContent = pageNum;
+      
+      logEvent('navigation', { 
+        page: pageNum, 
+        scale, 
+        viewport: { width: viewport.width, height: viewport.height }
+      });
+    }
+    
+    // Hover Tracking
+    function handleHoverStart(e) {
+      lastHoverElement = e.target;
+      const text = e.target.dataset.text;
+      
+      dwellTimer = setTimeout(() => {
+        logEvent('dwell', {
+          text: text,
+          duration: 2000,
+          element: e.target.dataset.index,
+          page: currentPage
+        });
+      }, 2000);
+      
+      // Show tooltip
+      const tooltip = document.getElementById('tooltip');
+      tooltip.textContent = `Hovering: "${text.slice(0, 50)}${text.length > 50 ? '...' : ''}"`;
+      tooltip.style.display = 'block';
+    }
+    
+    function handleHoverEnd(e) {
+      if (dwellTimer) {
+        clearTimeout(dwellTimer);
+        dwellTimer = null;
+      }
+      document.getElementById('tooltip').style.display = 'none';
+    }
+    
+    // Selection Tracking
+    document.addEventListener('selectionchange', () => {
+      const selection = window.getSelection();
+      const text = selection.toString();
+      
+      if (text.length > 0) {
+        logEvent('selection', {
+          text: text,
+          length: text.length,
+          page: currentPage
+        });
+      }
+    });
+    
+    // Navigation
+    function prevPage() {
+      if (currentPage > 1) {
+        currentPage--;
+        renderPage(currentPage);
+      }
+    }
+    
+    function nextPage() {
+      if (currentPage < pdfDoc.numPages) {
+        currentPage++;
+        renderPage(currentPage);
+      }
+    }
+    
+    function zoomIn() {
+      scale += 0.25;
+      renderPage(currentPage);
+    }
+    
+    function zoomOut() {
+      if (scale > 0.5) {
+        scale -= 0.25;
+        renderPage(currentPage);
+      }
+    }
+    
+    // Mouse tracking for tooltip
+    document.addEventListener('mousemove', (e) => {
+      const tooltip = document.getElementById('tooltip');
+      if (tooltip.style.display === 'block') {
+        tooltip.style.left = (e.clientX + 10) + 'px';
+        tooltip.style.top = (e.clientY + 10) + 'px';
+      }
+    });
+    
+    // Initialize
+    loadPDF();
+  </script>
+</body>
+</html>
